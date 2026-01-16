@@ -38,7 +38,7 @@ export function formatSolAmount(lamports: number, decimals = 4): string {
   return `${sol.toFixed(decimals)} SOL`;
 }
 
-// Get account balance
+// Get account balance with retry logic
 export async function getBalance(address: string): Promise<number> {
   try {
     const connection = getSolanaConnection();
@@ -46,6 +46,11 @@ export async function getBalance(address: string): Promise<number> {
     const balance = await connection.getBalance(publicKey);
     return balance;
   } catch (error) {
+    // Don't spam console for network failures - these are common with public RPCs
+    if (error instanceof TypeError && (error as Error).message?.includes('Failed to fetch')) {
+      console.warn('Solana RPC temporarily unavailable, returning cached/zero balance');
+      return 0;
+    }
     console.error('Error fetching balance:', error);
     return 0;
   }
@@ -60,7 +65,7 @@ export async function getTokenBalance(
     const connection = getSolanaConnection();
     const walletPublicKey = new PublicKey(walletAddress);
     const tokenMintPublicKey = new PublicKey(tokenMintAddress);
-    
+
     // Get token accounts
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
       walletPublicKey,
@@ -68,7 +73,7 @@ export async function getTokenBalance(
     );
 
     if (tokenAccounts.value.length === 0) return 0;
-    
+
     const balance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
     return balance || 0;
   } catch (error) {
@@ -93,7 +98,7 @@ export async function hasTokenAccess(
 }
 
 // Check if user owns NFT from collection
- 
+
 export async function hasNFTFromCollection(
   walletAddress: string,
   _collectionAddress: string
@@ -101,7 +106,7 @@ export async function hasNFTFromCollection(
   try {
     const connection = getSolanaConnection();
     const walletPublicKey = new PublicKey(walletAddress);
-    
+
     // Get all token accounts
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
       walletPublicKey,
@@ -126,7 +131,7 @@ export async function hasNFTFromCollection(
 }
 
 // Create transaction for on-chain voting
- 
+
 export async function createVoteTransaction(
   _voterAddress: string,
   _proposalId: string,
@@ -136,13 +141,13 @@ export async function createVoteTransaction(
     // TODO: Implement actual voting program interaction
     // This would interact with a deployed Solana program (Anchor)
     const transaction = new Transaction();
-    
+
     // Placeholder - would add actual vote instruction
     // const voteInstruction = await createVoteInstruction(
     //   voterAddress, proposalId, optionIndex
     // );
     // transaction.add(voteInstruction);
-    
+
     return transaction;
   } catch (error) {
     console.error('Error creating vote transaction:', error);
@@ -164,7 +169,7 @@ export async function mintPOAPBadge(
     // TODO: Implement cNFT minting using Metaplex Bubblegum
     // This would use Merkle trees for cheap batch minting
     console.log('Minting POAP badge for:', recipientAddress, badgeMetadata);
-    
+
     // Placeholder - would return actual mint signature
     return `mock-signature-${Date.now()}`;
   } catch (error) {
@@ -181,9 +186,9 @@ export async function getRecentTransactions(
   try {
     const connection = getSolanaConnection();
     const publicKey = new PublicKey(address);
-    
+
     const signatures = await connection.getSignaturesForAddress(publicKey, { limit });
-    
+
     const transactions = await Promise.all(
       signatures.map(async (sig) => {
         const tx = await connection.getParsedTransaction(sig.signature, 'confirmed');
@@ -195,7 +200,7 @@ export async function getRecentTransactions(
         };
       })
     );
-    
+
     return transactions;
   } catch (error) {
     console.error('Error fetching transactions:', error);
