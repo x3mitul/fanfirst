@@ -1,4 +1,3 @@
-# FanFirst
 # FanFirst - Fair Ticketing for Real Fans
 
 An AI-powered NFT ticketing platform built with Next.js that prioritizes real fans over bots and scalpers.
