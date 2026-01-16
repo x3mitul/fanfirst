@@ -2,32 +2,55 @@
 
 import { useWeb3Comfort } from '@/hooks/useWeb3Comfort';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Clock, CheckCircle, XCircle, Sparkles, Minimize2, Maximize2 } from 'lucide-react';
+import { Brain, Clock, CheckCircle, XCircle, Sparkles, Minimize2 } from 'lucide-react';
 import { useState } from 'react';
 
 export function AIDecisionPanel() {
-    const { result, signals, isAnalyzing, walletInfo } = useWeb3Comfort();
+    const { result, signals, isAnalyzing, walletInfo, aiMessage } = useWeb3Comfort();
     const [isExpanded, setIsExpanded] = useState(true);
     const [isMinimized, setIsMinimized] = useState(false);
 
     if (!result && !isAnalyzing) return null;
 
-    // Minimized view - just a small floating icon
+    // AI Chat Bubble (floats above everything)
+    const ChatBubble = () => (
+        <AnimatePresence>
+            {aiMessage && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="absolute -top-32 left-0 right-0 z-[100] pointer-events-none"
+                    key="chat-bubble"
+                >
+                    <div className="bg-white text-black p-4 rounded-2xl rounded-bl-sm shadow-2xl mx-auto w-64 text-sm font-bold border-2 border-purple-500 relative">
+                        {aiMessage}
+                        <div className="absolute -bottom-2 left-4 w-4 h-4 bg-white border-b-2 border-r-2 border-purple-500 transform rotate-45"></div>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+
+    // Minimized view
     if (isMinimized) {
         return (
-            <motion.button
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                onClick={() => setIsMinimized(false)}
-                className={`fixed bottom-4 left-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-2xl border ${result?.level === 'novice' ? 'bg-green-500/20 border-green-500/50' :
-                    result?.level === 'curious' ? 'bg-yellow-500/20 border-yellow-500/50' :
-                        result?.level === 'native' ? 'bg-purple-500/20 border-purple-500/50' :
-                            'bg-gray-500/20 border-gray-500/50'
-                    } hover:scale-110 transition-transform`}
-                title="Expand AI Panel"
-            >
-                <Brain className="w-6 h-6 text-purple-400" />
-            </motion.button>
+            <div className="fixed bottom-4 left-4 z-50">
+                <ChatBubble />
+                <motion.button
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    onClick={() => setIsMinimized(false)}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl border ${result?.level === 'novice' ? 'bg-green-500/20 border-green-500/50' :
+                        result?.level === 'curious' ? 'bg-yellow-500/20 border-yellow-500/50' :
+                            result?.level === 'native' ? 'bg-purple-500/20 border-purple-500/50' :
+                                'bg-gray-500/20 border-gray-500/50'
+                        } hover:scale-110 transition-transform backdrop-blur-xl`}
+                    title="Expand AI Panel"
+                >
+                    <Brain className="w-6 h-6 text-purple-400" />
+                </motion.button>
+            </div>
         );
     }
 
@@ -94,7 +117,9 @@ export function AIDecisionPanel() {
             animate={{ opacity: 1, x: 0 }}
             className="fixed bottom-4 left-4 z-50"
         >
-            <div className={`bg-gradient-to-br ${getDecisionColor()} backdrop-blur-xl border rounded-2xl shadow-2xl overflow-hidden max-w-xs`}>
+            <ChatBubble />
+
+            <div className={`bg-gradient-to-br ${getDecisionColor()} backdrop-blur-xl border rounded-2xl shadow-2xl overflow-hidden max-w-xs transition-all duration-300`}>
                 {/* Header */}
                 <div className="flex items-center">
                     <button

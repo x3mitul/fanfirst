@@ -80,26 +80,74 @@ export function AdaptivePurchaseButton({
         );
     }
 
+    // Generate unique AI art based on wallet address
+    const getGenerativeArt = (seed: string) => {
+        const colors = [
+            ['#FF0080', '#7928CA'], // Magenta -> Purple
+            ['#4158D0', '#C850C0', '#FFCC70'], // Blue -> Pink -> Yellow
+            ['#0093E9', '#80D0C7'], // Blue -> Cyan
+            ['#8EC5FC', '#E0C3FC'], // Light Blue -> Light Purple
+            ['#FA8BFF', '#2BD2FF', '#2BFF88'] // Pink -> Blue -> Green
+        ];
+        // Simple hash to pick a palette
+        const hash = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const palette = colors[hash % colors.length];
+        return `linear-gradient(135deg, ${palette.join(', ')})`;
+    };
+
     // Demo purchase success state
     if (demoPurchaseSuccess && embeddedWallet) {
+        const uniqueArt = getGenerativeArt(embeddedWallet.address);
+        const ticketId = `TKT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        const qrData = JSON.stringify({
+            ticketId,
+            owner: embeddedWallet.address,
+            event: "Connected Concert 2024",
+            tier: "VIP"
+        });
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&color=000000`;
+
         return (
-            <div className="space-y-3">
+            <div className="space-y-4">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="p-6 bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 rounded-3xl text-center"
+                    className="overflow-hidden rounded-3xl border border-white/10 relative"
                 >
-                    <div className="text-4xl mb-2">🎉</div>
-                    <p className="font-black text-xl text-green-400 uppercase">Purchase Successful!</p>
-                    <p className="text-sm text-white/60 mt-2">NFT Ticket minted to your wallet</p>
-                    <p className="text-xs text-green-400/60 font-mono mt-2">
-                        {embeddedWallet.address.slice(0, 10)}...{embeddedWallet.address.slice(-8)}
-                    </p>
+                    {/* Generative Art Background */}
+                    <div
+                        className="absolute inset-0 opacity-80"
+                        style={{ background: uniqueArt }}
+                    />
+
+                    <div className="relative p-6 backdrop-blur-sm bg-black/30 flex flex-col items-center text-center">
+                        <div className="bg-white p-2 rounded-xl shadow-lg mb-4">
+                            {/* QR Code */}
+                            <img
+                                src={qrUrl}
+                                alt="Ticket QR"
+                                className="w-32 h-32 rounded-lg mix-blend-multiply"
+                            />
+                        </div>
+
+                        <p className="font-black text-xl text-white uppercase shadow-sm tracking-wide">Access Granted</p>
+
+                        <div className="mt-3 p-2 px-4 bg-black/40 rounded-full border border-white/10 inline-flex items-center gap-2">
+                            <span className="text-xs font-mono text-white/80">{ticketId}</span>
+                        </div>
+
+                        <div className="mt-4 flex flex-col gap-1">
+                            <div className="flex items-center justify-center gap-2">
+                                <Sparkles className="w-3 h-3 text-purple-400" />
+                                <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">AI Generated Ticket</span>
+                            </div>
+                            <p className="text-[10px] text-white/50 font-mono">
+                                Owner: {embeddedWallet.address.slice(0, 6)}...{embeddedWallet.address.slice(-4)}
+                            </p>
+                        </div>
+                    </div>
                 </motion.div>
-                <div className="flex items-center justify-center gap-2 text-xs text-purple-400">
-                    <Sparkles className="w-3 h-3" />
-                    <span>AI handled blockchain complexity invisibly</span>
-                </div>
+
                 <Button
                     variant="outline"
                     className="w-full rounded-full"

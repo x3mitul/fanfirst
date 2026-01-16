@@ -127,6 +127,7 @@ export function useWeb3Comfort() {
     const [walletInfo, setWalletInfo] = useState<{ hasWallet: boolean; walletType: string | null }>({ hasWallet: false, walletType: null });
 
     const [aiMessage, setAiMessage] = useState<string | null>(null);
+    const timeTrackingRef = useRef<number>(0);
     const analysisStartRef = useRef<number>(Date.now());
     const hasShownWelcomeRef = useRef(false);
 
@@ -141,6 +142,8 @@ export function useWeb3Comfort() {
                     setAiMessage("👋 Hi! I've simplified the crypto parts for you.");
                 } else if (result.level === 'curious') {
                     setAiMessage("💡 I've enabled both simple & advanced options for you.");
+                } else {
+                    setAiMessage("⚡ AI Web3 Assistant active."); // Fallback for testing
                 }
                 hasShownWelcomeRef.current = true;
 
@@ -151,7 +154,7 @@ export function useWeb3Comfort() {
         }
 
         // 2. Hesitation Help (Novice only)
-        if (result.level === 'novice' && signals?.timeOnWeb3UI > 15 && !signals.hasConnectedWalletBefore) {
+        if (result.level === 'novice' && (signals?.timeOnWeb3UI || 0) > 15 && !signals?.hasConnectedWalletBefore) {
             const interval = setInterval(() => {
                 // Only show if no message currently
                 setAiMessage(prev => prev || "✨ No wallet needed! Just click 'Buy Ticket' to start.");
@@ -160,7 +163,7 @@ export function useWeb3Comfort() {
             return () => clearInterval(interval);
         }
 
-    }, [result, isAnalyzing, signals?.timeOnWeb3UI]);
+    }, [result, isAnalyzing, signals?.timeOnWeb3UI, signals?.hasConnectedWalletBefore]);
 
     // Enhanced wallet detection
     useEffect(() => {
@@ -334,6 +337,7 @@ export function useWeb3Comfort() {
         isAnalyzing,
         signals,
         walletInfo,
+        aiMessage,
         // Tracking functions
         recordWalletConnection,
         recordTransaction,
