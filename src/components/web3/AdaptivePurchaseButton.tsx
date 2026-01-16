@@ -30,9 +30,21 @@ export function AdaptivePurchaseButton({
     const [showOptions, setShowOptions] = useState(false);
     const [showAIInsight, setShowAIInsight] = useState(false);
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [demoPurchaseSuccess, setDemoPurchaseSuccess] = useState(false);
+    const [isProcessingDemo, setIsProcessingDemo] = useState(false);
 
     // Get embedded wallet if exists
     const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
+
+    // Demo purchase simulation for embedded wallet
+    const handleDemoPurchase = async () => {
+        setIsProcessingDemo(true);
+        // Simulate blockchain transaction
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setIsProcessingDemo(false);
+        setDemoPurchaseSuccess(true);
+        console.log('🎟️ Demo purchase completed with wallet:', embeddedWallet?.address);
+    };
 
     // Handle simple checkout (Privy login + embedded wallet)
     const handleSimpleCheckout = async () => {
@@ -49,9 +61,8 @@ export function AdaptivePurchaseButton({
                 setIsLoggingIn(false);
             }
         } else if (embeddedWallet) {
-            // User has embedded wallet, proceed with purchase
-            console.log('🎟️ Purchasing with embedded wallet:', embeddedWallet.address);
-            onEmbeddedPurchase?.() || onWalletPurchase();
+            // User has embedded wallet, proceed with demo purchase
+            handleDemoPurchase();
         } else {
             // Authenticated but no embedded wallet - use external wallet
             onWalletPurchase();
@@ -68,7 +79,38 @@ export function AdaptivePurchaseButton({
         );
     }
 
-    // Show login success message
+    // Demo purchase success state
+    if (demoPurchaseSuccess && embeddedWallet) {
+        return (
+            <div className="space-y-3">
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="p-6 bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 rounded-3xl text-center"
+                >
+                    <div className="text-4xl mb-2">🎉</div>
+                    <p className="font-black text-xl text-green-400 uppercase">Purchase Successful!</p>
+                    <p className="text-sm text-white/60 mt-2">NFT Ticket minted to your wallet</p>
+                    <p className="text-xs text-green-400/60 font-mono mt-2">
+                        {embeddedWallet.address.slice(0, 10)}...{embeddedWallet.address.slice(-8)}
+                    </p>
+                </motion.div>
+                <div className="flex items-center justify-center gap-2 text-xs text-purple-400">
+                    <Sparkles className="w-3 h-3" />
+                    <span>AI handled blockchain complexity invisibly</span>
+                </div>
+                <Button
+                    variant="outline"
+                    className="w-full rounded-full"
+                    onClick={() => setDemoPurchaseSuccess(false)}
+                >
+                    Buy Another Ticket
+                </Button>
+            </div>
+        );
+    }
+
+    // Show login success message with purchase button
     if (authenticated && embeddedWallet && isNovice) {
         return (
             <div className="space-y-3">
@@ -80,10 +122,17 @@ export function AdaptivePurchaseButton({
                 </div>
                 <Button
                     className="w-full h-16 rounded-full text-lg font-black uppercase italic bg-gradient-to-r from-green-500 to-emerald-600"
-                    onClick={onWalletPurchase}
-                    disabled={disabled || isPending}
+                    onClick={handleDemoPurchase}
+                    disabled={disabled || isProcessingDemo}
                 >
-                    {isPending ? 'Processing...' : `Complete Purchase • ${ticketPrice}`}
+                    {isProcessingDemo ? (
+                        <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Minting NFT...
+                        </>
+                    ) : (
+                        `Complete Purchase • ${ticketPrice}`
+                    )}
                 </Button>
                 <p className="text-center text-xs text-white/40">
                     <Sparkles className="w-3 h-3 inline mr-1 text-purple-400" />

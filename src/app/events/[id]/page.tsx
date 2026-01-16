@@ -23,6 +23,7 @@ import { useUser } from "@auth0/nextjs-auth0/client";
 import { useStore } from "@/lib/store";
 import QuizModal from "@/components/quiz/QuizModal";
 import { AdaptivePurchaseButton } from "@/components/web3/AdaptivePurchaseButton";
+import { AIDecisionPanel } from "@/components/web3/AIDecisionPanel";
 
 export default function EventDetailPage() {
     const params = useParams();
@@ -402,6 +403,9 @@ export default function EventDetailPage() {
                 onComplete={handleQuizComplete}
                 artistName={event.artist}
             />
+
+            {/* AI Decision Panel */}
+            <AIDecisionPanel />
         </div>
     );
 }

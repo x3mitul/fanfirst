@@ -19,12 +19,11 @@ export function PrivyProvider({ children }: PrivyProviderProps) {
         <BasePrivyProvider
             appId={appId}
             config={{
-                loginMethods: ['email', 'google', 'wallet'],
+                loginMethods: ['email'], // Email works by default, Google requires dashboard config
                 appearance: {
                     theme: 'dark',
-                    accentColor: '#22c55e', // Green to match FanFirst
-                    logo: '/logo.png',
-                    showWalletLoginFirst: false, // Show social login first for novices
+                    accentColor: '#22c55e',
+                    showWalletLoginFirst: false,
                 },
                 embeddedWallets: {
                     ethereum: {
