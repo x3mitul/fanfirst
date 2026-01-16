@@ -7,14 +7,14 @@ import { CommunityCard } from '@/components/community/CommunityCard';
 import { ProposalCard } from '@/components/community/ProposalCard';
 import { CreateCommunityModal, CommunityFormData } from '@/components/community/CreateCommunityModal';
 import { useSolanaWallet } from '@/hooks/useSolanaWallet';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useCustomWalletModal } from '@/providers/SolanaWalletProvider';
 import { Sparkles, Vote, Users, TrendingUp, Wallet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function CommunityPage() {
   const { communities, setCommunities, proposals, setProposals, joinedCommunities, voteOnProposal } = useStore();
   const { connected, shortAddress, balance, disconnect } = useSolanaWallet();
-  const { setVisible } = useWalletModal();
+  const { setVisible } = useCustomWalletModal();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const handleCreateCommunity = (data: CommunityFormData) => {

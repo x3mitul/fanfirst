@@ -50,20 +50,29 @@ export function DualWalletButton() {
               <div className="text-xs font-bold tracking-wider text-white mb-3">
                 SELECT CHAIN
               </div>
-              
+
               <ConnectButton.Custom>
-                {({ openConnectModal }) => (
-                  <button
-                    onClick={() => {
-                      openConnectModal();
-                      setShowChainSelector(false);
-                    }}
-                    className="w-full px-4 py-3 bg-black text-white font-bold text-sm tracking-wider border-2 border-white hover:bg-white hover:text-black transition-colors text-left"
-                  >
-                    ETHEREUM / EVM
-                    <div className="text-xs opacity-60 mt-1">For ticket purchases</div>
-                  </button>
-                )}
+                {({ openConnectModal, mounted }) => {
+                  console.log('ConnectButton render:', { openConnectModal, mounted });
+                  return (
+                    <button
+                      onClick={() => {
+                        console.log('EVM Connect clicked', { openConnectModal });
+                        if (openConnectModal) {
+                          openConnectModal();
+                        } else {
+                          console.error('openConnectModal is undefined');
+                        }
+                        setShowChainSelector(false);
+                      }}
+                      disabled={!mounted}
+                      className="w-full px-4 py-3 bg-black text-white font-bold text-sm tracking-wider border-2 border-white hover:bg-white hover:text-black transition-colors text-left disabled:opacity-50"
+                    >
+                      ETHEREUM / EVM
+                      <div className="text-xs opacity-60 mt-1">For ticket purchases</div>
+                    </button>
+                  );
+                }}
               </ConnectButton.Custom>
 
               <button
@@ -107,7 +116,7 @@ export function DualWalletButton() {
             )}
           </ConnectButton.Custom>
         )}
-        
+
         {/* Solana Wallet */}
         {solanaConnected ? (
           <button
@@ -129,9 +138,9 @@ export function DualWalletButton() {
       </div>
 
       {/* Custom Solana Wallet Modal */}
-      <SolanaWalletModal 
-        visible={showSolanaModal} 
-        onClose={() => setShowSolanaModal(false)} 
+      <SolanaWalletModal
+        visible={showSolanaModal}
+        onClose={() => setShowSolanaModal(false)}
       />
     </>
   );

@@ -70,10 +70,17 @@ export function RestrictedCursorTrail({ enabled = true }: RestrictedCursorTrailP
         // 2. Video Fade-In
         timeline.to({}, { duration: 0.3 });
         timeline.add(() => setShowVideo(true));
-        timeline.fromTo(".intro-video-overlay",
-            { opacity: 0 },
-            { opacity: 1, duration: 1, ease: "power2.inOut" }
-        );
+        // Add delay to let React render the element before animating
+        timeline.to({}, { duration: 0.1 });
+        timeline.add(() => {
+            const overlay = document.querySelector(".intro-video-overlay");
+            if (overlay) {
+                gsap.fromTo(overlay,
+                    { opacity: 0 },
+                    { opacity: 1, duration: 1, ease: "power2.inOut" }
+                );
+            }
+        });
 
         // 3. Clock Timer and Video Play
         timeline.add(() => {
@@ -88,21 +95,35 @@ export function RestrictedCursorTrail({ enabled = true }: RestrictedCursorTrailP
 
                     // 4. Video Fade-Out to reveal collage again
                     setTimeout(() => {
-                        gsap.to([".intro-video-overlay", ".clock-timer-container"], {
-                            opacity: 0,
-                            duration: 0.8,
-                            ease: "power2.inOut",
-                            onComplete: () => {
-                                setShowVideo(false);
-                                setShowTimer(false);
-                                setIntroComplete(true);
-                                gsap.to(introOverlayRef.current, {
-                                    opacity: 0,
-                                    duration: 0.5,
-                                    onComplete: () => setShowIntro(false)
-                                });
-                            }
-                        });
+                        const targets = [".intro-video-overlay", ".clock-timer-container"]
+                            .map(sel => document.querySelector(sel))
+                            .filter(Boolean);
+                        if (targets.length > 0) {
+                            gsap.to(targets, {
+                                opacity: 0,
+                                duration: 0.8,
+                                ease: "power2.inOut",
+                                onComplete: () => {
+                                    setShowVideo(false);
+                                    setShowTimer(false);
+                                    setIntroComplete(true);
+                                    if (introOverlayRef.current) {
+                                        gsap.to(introOverlayRef.current, {
+                                            opacity: 0,
+                                            duration: 0.5,
+                                            onComplete: () => setShowIntro(false)
+                                        });
+                                    } else {
+                                        setShowIntro(false);
+                                    }
+                                }
+                            });
+                        } else {
+                            setShowVideo(false);
+                            setShowTimer(false);
+                            setIntroComplete(true);
+                            setShowIntro(false);
+                        }
                     }, 500);
                 } else {
                     setTimerCount(count);
