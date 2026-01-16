@@ -33,6 +33,7 @@ interface NavbarClientProps {
 
 const navLinks = [
     { href: "/events", label: "EVENTS" },
+    { href: "/quiz", label: "FANIQ" },
     { href: "/resale", label: "MARKET" },
     { href: "/community", label: "COMMUNITY" },
     { href: "/how-it-works", label: "PROTOCOL" },

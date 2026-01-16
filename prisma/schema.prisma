@@ -34,6 +34,8 @@ model User {
   posts          CommunityPost[]
   memberships    CommunityMember[]
   postVotes      PostVote[]
+  quizAttempts   QuizAttempt[]
+  fanIQBadges    FanIQBadge[]
 }
 
 // ============================================
@@ -198,4 +200,99 @@ model ProposalOption {
   proposal   GovernanceProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   text       String
   votes      Int      @default(0)
+}
+
+// ============================================
+// FANIQ ARENA (Quiz System)
+// ============================================
+
+model Quiz {
+  id            String    @id @default(uuid())
+  eventId       String?
+  artistId      String
+  artistName    String
+  type          String    // "live" | "async"
+  status        String    @default("pending") // pending, active, completed
+  duration      Int       @default(180) // seconds
+  questionCount Int       @default(10)
+  startTime     DateTime?
+  endTime       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  questions     QuizQuestion[]
+  attempts      QuizAttempt[]
+}
+
+model QuizQuestion {
+  id              String   @id @default(uuid())
+  quizId          String
+  quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question        String
+  type            String   // "multiple_choice" | "fill_blank" | "order" | "visual" | "creative"
+  options         String[] // Array of options
+  correctAnswer   String
+  imageUrl        String?
+  timeLimit       Int      @default(7) // seconds per question
+  difficulty      String   @default("medium") // easy, medium, hard
+  orderIndex      Int
+  createdAt       DateTime @default(now())
+}
+
+model QuizAttempt {
+  id                 String   @id @default(uuid())
+  quizId             String
+  quiz               Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+  
+  correctAnswers     Int      @default(0)
+  totalQuestions     Int
+  avgResponseTime    Float    @default(0) // milliseconds
+  responseTimeStdDev Float    @default(0) // for consistency scoring
+  streak             Int      @default(0)
+  maxStreak          Int      @default(0)
+  
+  finalScore         Float    @default(0)
+  speedScore         Float    @default(0)
+  accuracyScore      Float    @default(0)
+  consistencyScore   Float    @default(0)
+  
+  rank               Int?
+  status             String   @default("in_progress") // in_progress, completed
+  startedAt          DateTime @default(now())
+  completedAt        DateTime?
+
+  // Relations
+  responses          QuizResponse[]
+  
+  @@index([quizId, finalScore])
+  @@index([userId])
+}
+
+model QuizResponse {
+  id            String      @id @default(uuid())
+  attemptId     String
+  attempt       QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId    String
+  answer        String
+  isCorrect     Boolean
+  responseTime  Int         // milliseconds
+  answeredAt    DateTime    @default(now())
+}
+
+model FanIQBadge {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  tier          String   // "bronze" | "silver" | "gold"
+  artistId      String
+  artistName    String
+  tokenId       String?  // NFT token ID on Polygon
+  txHash        String?  // Blockchain transaction hash
+  earnedAt      DateTime @default(now())
+
+  @@unique([userId, artistId, tier])
+  @@index([userId])
 }
