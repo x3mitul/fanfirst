@@ -22,6 +22,7 @@ import { useTicketPurchase } from "@/hooks";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { useStore } from "@/lib/store";
 import QuizModal from "@/components/quiz/QuizModal";
+import { AdaptivePurchaseButton } from "@/components/web3/AdaptivePurchaseButton";
 
 export default function EventDetailPage() {
     const params = useParams();
@@ -282,16 +283,16 @@ export default function EventDetailPage() {
                                         </div>
                                     )}
 
-                                    <Button
-                                        className="w-full h-16 rounded-full text-lg font-black uppercase italic"
-                                        disabled={!selectedTier || isPending}
-                                        onClick={handlePurchase}
-                                    >
-                                        {isPending ? "Processing..." : "Purchase NFT Ticket"}
-                                    </Button>
+                                    <AdaptivePurchaseButton
+                                        ticketPrice={selectedTier ? formatPrice(event.ticketTiers.find(t => t.id === selectedTier)?.price || 0) : 'Select tier'}
+                                        tierName={selectedTier ? event.ticketTiers.find(t => t.id === selectedTier)?.name || '' : ''}
+                                        onWalletPurchase={handlePurchase}
+                                        isPending={isPending}
+                                        disabled={!selectedTier}
+                                    />
 
                                     <p className="text-center text-[10px] text-white/30 uppercase tracking-widest mt-6">
-                                        On-chain verify via FanFirst protocol
+                                        AI adapts Web3 to your comfort level
                                     </p>
                                 </div>
                             </div>
