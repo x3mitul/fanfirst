@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Image, MessageSquare, HelpCircle, Newspaper, Loader2 } from 'lucide-react';
+import { X, Image, MessageSquare, HelpCircle, Newspaper, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { FandomScoreBadge } from '@/components/ui/FandomScoreBadge';
+import { ModerationResult } from '@/lib/types/moderation';
+import { ContentWarning } from './ContentWarning';
 
 type PostType = 'discussion' | 'question' | 'photo' | 'news';
 
@@ -38,6 +40,47 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
     const [postType, setPostType] = useState<PostType>('discussion');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [moderationResult, setModerationResult] = useState<ModerationResult | null>(null);
+    const [showWarning, setShowWarning] = useState(false);
+    const [checking, setChecking] = useState(false);
+
+    const moderateBeforePost = async () => {
+        setError(null);
+        setChecking(true);
+
+        try {
+            const response = await fetch('/api/moderate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: content.trim(),
+                    title: title.trim(),
+                    contentType: 'post',
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Moderation check failed');
+            }
+
+            setModerationResult(data.result);
+
+            if (!data.result.allowed) {
+                setShowWarning(true);
+                return false;
+            }
+
+            return true;
+        } catch (err) {
+            console.error('Moderation error:', err);
+            // Allow post if moderation fails (fail open)
+            return true;
+        } finally {
+            setChecking(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,6 +101,12 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
             return;
         }
 
+        // Check moderation before submitting
+        const moderationPassed = await moderateBeforePost();
+        if (!moderationPassed) {
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -71,6 +120,7 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
             setTitle('');
             setContent('');
             setPostType('discussion');
+            setModerationResult(null);
             onClose();
         } catch (err) {
             setError('Failed to create post. Please try again.');
@@ -211,6 +261,17 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
                                 </div>
                             )}
 
+                            {/* Moderation Status */}
+                            {moderationResult && moderationResult.flagged && moderationResult.allowed && (
+                                <div className="p-3 bg-yellow-500/20 border border-yellow-500 text-yellow-400 text-sm flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p className="font-medium">Content may need review</p>
+                                        <p className="text-xs mt-1">Some content was flagged but you can still post. Please ensure it follows community guidelines.</p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Actions */}
                             <div className="flex gap-3 pt-4">
                                 <Button
@@ -218,7 +279,7 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
                                     variant="outline"
                                     onClick={onClose}
                                     className="flex-1"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || checking}
                                 >
                                     Cancel
                                 </Button>
@@ -226,9 +287,14 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
                                     type="submit"
                                     variant="primary"
                                     className="flex-1"
-                                    disabled={isSubmitting || !title.trim() || !content.trim()}
+                                    disabled={isSubmitting || checking || !title.trim() || !content.trim()}
                                 >
-                                    {isSubmitting ? (
+                                    {checking ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Checking...
+                                        </>
+                                    ) : isSubmitting ? (
                                         <>
                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                             Posting...
@@ -239,6 +305,20 @@ export function CreatePostModal({ isOpen, onClose, onSubmit, communityName, user
                                 </Button>
                             </div>
                         </form>
+
+                        {/* Moderation Warning Modal */}
+                        {moderationResult && (
+                            <ContentWarning
+                                isOpen={showWarning}
+                                onClose={() => setShowWarning(false)}
+                                result={moderationResult}
+                                onEdit={() => {
+                                    setShowWarning(false);
+                                    setModerationResult(null);
+                                }}
+                                contentType="post"
+                            />
+                        )}
                     </motion.div>
                 </motion.div>
             )}

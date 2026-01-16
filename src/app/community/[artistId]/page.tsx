@@ -282,7 +282,7 @@ export default function CommunityFeedPage({ params }: CommunityFeedPageProps) {
                 onClose={() => setIsCreatePostOpen(false)}
                 onSubmit={(post) => {
                     if (!currentUser) {
-                        alert('Please log in to create a post');
+                        // This shouldn't happen as modal shows Login Required when user is null
                         return;
                     }
                     // Create post via socket -> persisted to database
@@ -311,12 +311,7 @@ export default function CommunityFeedPage({ params }: CommunityFeedPageProps) {
                     name: currentUser.name,
                     avatar: currentUser.avatar || "",
                     fandomScore: currentUser.fandomScore
-                } : {
-                    id: 'anonymous',
-                    name: 'Guest',
-                    avatar: mockUsers[0].avatar || "",
-                    fandomScore: 0
-                }}
+                } : null}
             />
         </div>
     );

@@ -14,7 +14,8 @@ import {
     Image as ImageIcon,
     HelpCircle,
     MessageCircle,
-    Newspaper
+    Newspaper,
+    Flag
 } from 'lucide-react';
 import { CommunityPost } from '@/lib/types';
 import { FandomScoreBadge } from '@/components/ui/FandomScoreBadge';
@@ -194,6 +195,17 @@ export function PostCard({ post, communitySlug, onVote }: PostCardProps) {
                         >
                             <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
                             <span>{saved ? 'Saved' : 'Save'}</span>
+                        </button>
+
+                        <button
+                            className="flex items-center gap-1.5 hover:text-red-400 transition-colors"
+                            onClick={() => {
+                                // TODO: Implement report functionality
+                                alert('Report submitted! Our moderation team will review this post.');
+                            }}
+                        >
+                            <Flag className="w-4 h-4" />
+                            <span>Report</span>
                         </button>
 
                         <button className="flex items-center gap-1.5 hover:text-white transition-colors ml-auto">
