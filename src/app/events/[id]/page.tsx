@@ -26,7 +26,8 @@ export default function EventDetailPage() {
     const router = useRouter();
     const [selectedTier, setSelectedTier] = useState<string | null>(null);
     const [showQuizPrompt, setShowQuizPrompt] = useState(false);
-    const { buyTicket, isPending, isSuccess, error } = useTicketPurchase();
+    const [showWalletPrompt, setShowWalletPrompt] = useState(false);
+    const { buyTicket, isPending, isSuccess, error, isConnected } = useTicketPurchase();
     const { isAuthenticated } = useStore();
 
     const event = mockEvents.find((e) => e.id === params.id);
@@ -34,7 +35,13 @@ export default function EventDetailPage() {
     const handlePurchase = async () => {
         if (!selectedTier || !event) return;
 
-        // If user is authenticated, show quiz prompt first
+        // Check wallet connection first
+        if (!isConnected) {
+            setShowWalletPrompt(true);
+            return;
+        }
+
+        // If user is authenticated, show quiz prompt first (only once)
         if (isAuthenticated && !showQuizPrompt) {
             setShowQuizPrompt(true);
             return;
@@ -296,6 +303,39 @@ export default function EventDetailPage() {
                                 className="w-full py-3 text-white/40 hover:text-white/60 text-sm transition-colors"
                             >
                                 Skip for now
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Wallet Connection Prompt Modal */}
+            {showWalletPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-gray-900 border border-white/10 rounded-3xl p-8 max-w-md w-full"
+                    >
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center mx-auto mb-4">
+                                <ShieldCheck className="w-8 h-8 text-orange-400" />
+                            </div>
+                            <h2 className="text-2xl font-black uppercase italic mb-2">Connect Wallet</h2>
+                            <p className="text-white/60 text-sm">
+                                Connect your wallet to purchase NFT tickets. Your ticket will be minted directly to your wallet.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <p className="text-center text-xs text-white/40 mb-4">
+                                Use the wallet button in the header to connect your EVM or Solana wallet.
+                            </p>
+                            <button
+                                onClick={() => setShowWalletPrompt(false)}
+                                className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-full text-white font-medium transition-colors"
+                            >
+                                Close
                             </button>
                         </div>
                     </motion.div>
