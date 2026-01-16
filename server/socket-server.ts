@@ -61,7 +61,7 @@ io.on('connection', (socket: Socket) => {
     socket.on('join:community', async (communityId: string) => {
         if (currentCommunity) {
             socket.leave(`community:${currentCommunity}`);
-            onlineUsers.get(currentCommunity)?.delete(currentUser?.id || '');
+            onlineUsers.get(currentCommunity)?.delete(socket.id); // Use socket.id for accurate count
         }
 
         currentCommunity = communityId;
@@ -70,16 +70,14 @@ io.on('connection', (socket: Socket) => {
         if (!onlineUsers.has(communityId)) {
             onlineUsers.set(communityId, new Set());
         }
-        if (currentUser) {
-            onlineUsers.get(communityId)!.add(currentUser.id);
-        }
+        onlineUsers.get(communityId)!.add(socket.id);
 
         io.to(`community:${communityId}`).emit('online:count', {
             communityId,
             count: onlineUsers.get(communityId)?.size || 0,
         });
 
-        console.log(`[Socket] ${currentUser?.name || socket.id} joined community: ${communityId}`);
+        console.log(`[Socket] ${currentUser?.name || socket.id} joined community: ${communityId} (Count: ${onlineUsers.get(communityId)?.size})`);
     });
 
     // Join a post room (for comments)
@@ -96,7 +94,7 @@ io.on('connection', (socket: Socket) => {
     // Create a new post - PERSISTED TO DATABASE
     socket.on('post:create', async (postData: {
         communityId: string;
-        authorId: string; // This is the Auth0 ID (e.g., "auth0|mock-user-1")
+        authorId: string; // This is the Auth0 ID
         title: string;
         content: string;
         type: string;
@@ -241,7 +239,109 @@ io.on('connection', (socket: Socket) => {
         }
     });
 
-    // Typing indicator (stays in-memory - no need to persist)
+    // ----------------------------------------------------------------------
+    // COMMENT HANDLERS
+    // ----------------------------------------------------------------------
+
+    // Create a comment
+    socket.on('comment:create', async ({ postId, content, parentId }: { postId: string; content: string; parentId?: string }) => {
+        if (!currentUser) {
+            socket.emit('error', { message: 'You must be logged in to comment' });
+            return;
+        }
+
+        try {
+            const user = await prisma.user.findUnique({ where: { id: currentUser.id } });
+            if (!user) {
+                console.error('[Socket] User not found for comment creation');
+                return;
+            }
+
+            const comment = await prisma.comment.create({
+                data: {
+                    content,
+                    postId,
+                    authorId: user.id,
+                    parentId: parentId || null,
+                    upvotes: 0,
+                    downvotes: 0,
+                },
+                include: {
+                    author: true,
+                },
+            });
+
+            // Update comment count on post
+            const updatedPost = await prisma.communityPost.update({
+                where: { id: postId },
+                data: { commentCount: { increment: 1 } },
+                include: { author: true }
+            });
+
+            // Broadcast new comment to post room
+            io.to(`post:${postId}`).emit('comment:new', comment);
+
+            // Broadcast comment count update to community list
+            io.to(`community:${updatedPost.communityId}`).emit('post:comment:count', {
+                postId,
+                count: updatedPost.commentCount
+            });
+
+            console.log(`[Socket] Comment created on ${postId} by ${currentUser.name}`);
+        } catch (error) {
+            console.error('[Socket] Error creating comment:', error);
+            socket.emit('error', { message: 'Failed to create comment' });
+        }
+    });
+
+    // Vote on a comment
+    socket.on('comment:vote', async ({ commentId, postId, direction }: { commentId: string; postId: string; direction: 'up' | 'down' | null }) => {
+        if (!currentUser) return;
+
+        try {
+            const existingVote = await prisma.commentVote.findUnique({
+                where: { commentId_userId: { commentId, userId: currentUser.id } },
+            });
+
+            let upvotesDelta = 0;
+            let downvotesDelta = 0;
+
+            if (existingVote) {
+                if (existingVote.type === 'up') upvotesDelta--;
+                if (existingVote.type === 'down') downvotesDelta--;
+                await prisma.commentVote.delete({
+                    where: { commentId_userId: { commentId, userId: currentUser.id } },
+                });
+            }
+
+            if (direction) {
+                await prisma.commentVote.create({
+                    data: { commentId, userId: currentUser.id, type: direction },
+                });
+                if (direction === 'up') upvotesDelta++;
+                if (direction === 'down') downvotesDelta++;
+            }
+
+            const updatedComment = await prisma.comment.update({
+                where: { id: commentId },
+                data: {
+                    upvotes: { increment: upvotesDelta },
+                    downvotes: { increment: downvotesDelta },
+                },
+            });
+
+            io.to(`post:${postId}`).emit('comment:vote:update', {
+                commentId,
+                upvotes: updatedComment.upvotes,
+                downvotes: updatedComment.downvotes,
+            });
+
+        } catch (error) {
+            console.error('[Socket] Error voting on comment:', error);
+        }
+    });
+
+    // Typing indication
     socket.on('typing:start', (postId: string) => {
         if (!currentUser) return;
         if (!typingUsers.has(postId)) {
@@ -537,8 +637,8 @@ io.on('connection', (socket: Socket) => {
 
     // Disconnect
     socket.on('disconnect', () => {
-        if (currentCommunity && currentUser) {
-            onlineUsers.get(currentCommunity)?.delete(currentUser.id);
+        if (currentCommunity) {
+            onlineUsers.get(currentCommunity)?.delete(socket.id); // Remove by socket.id
             io.to(`community:${currentCommunity}`).emit('online:count', {
                 communityId: currentCommunity,
                 count: onlineUsers.get(currentCommunity)?.size || 0,

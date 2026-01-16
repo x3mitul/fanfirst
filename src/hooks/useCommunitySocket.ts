@@ -163,15 +163,38 @@ export function usePostSocket({ postId, initialComments = [] }: UsePostSocketOpt
         }
     }, [isConnected, postId, joinPost, leavePost]);
 
+    // Recursive helper to add comment to tree
+    const addCommentToTree = useCallback((comments: Comment[], newComment: Comment): Comment[] => {
+        // If it's a root comment, add to top
+        if (!newComment.parentId) {
+            // Check if already exists to prevent dupes
+            if (comments.some(c => c.id === newComment.id)) return comments;
+            return [newComment, ...comments];
+        }
+
+        return comments.map(c => {
+            if (c.id === newComment.parentId) {
+                // Ensure replies array exists
+                const replies = c.replies || [];
+                // Check dupes
+                if (replies.some(r => r.id === newComment.id)) return c;
+                return { ...c, replies: [...replies, newComment] };
+            } else if (c.replies && c.replies.length > 0) {
+                return { ...c, replies: addCommentToTree(c.replies, newComment) };
+            }
+            return c;
+        });
+    }, []);
+
     // Listen for new comments
     useEffect(() => {
         const cleanup = onNewComment((newComment: Comment) => {
             if (newComment.postId === postId) {
-                setComments(prev => [...prev, newComment]);
+                setComments(prev => addCommentToTree(prev, newComment));
             }
         });
         return cleanup;
-    }, [onNewComment, postId]);
+    }, [onNewComment, postId, addCommentToTree]);
 
     // Listen for comment vote updates
     useEffect(() => {

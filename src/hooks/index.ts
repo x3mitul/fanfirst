@@ -15,3 +15,6 @@ export {
 
 // Community Socket Hooks
 export { useCommunitySocket, usePostSocket } from './useCommunitySocket';
+
+// AI Web3 Comfort Hook
+export { useWeb3Comfort } from './useWeb3Comfort';

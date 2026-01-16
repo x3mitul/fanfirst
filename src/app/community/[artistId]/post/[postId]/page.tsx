@@ -19,6 +19,7 @@ import { FandomScoreBadge } from '@/components/ui/FandomScoreBadge';
 import { mockPosts, mockComments } from '@/lib/community-mock-data';
 import { mockCommunities } from '@/lib/mock-data';
 import { CommunityPost } from '@/lib/types';
+import { usePostSocket } from '@/hooks/useCommunitySocket';
 
 interface PostDetailPageProps {
     params: Promise<{ artistId: string; postId: string }>;
@@ -45,6 +46,14 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
     const [newComment, setNewComment] = useState('');
     const [post, setPost] = useState<CommunityPost | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Initialize socket for real-time comments - MOVED UP
+    const {
+        comments,
+        setComments,
+        createComment,
+        voteComment
+    } = usePostSocket({ postId });
 
     // Fetch post from database
     useEffect(() => {
@@ -77,6 +86,22 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
         fetchPost();
     }, [postId]);
 
+    // Fetch comments from API on mount - MOVED UP
+    useEffect(() => {
+        const fetchComments = async () => {
+            try {
+                const res = await fetch(`/api/posts/${postId}/comments`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setComments(data);
+                }
+            } catch (error) {
+                console.error('Error fetching comments:', error);
+            }
+        };
+        fetchComments();
+    }, [postId, setComments]);
+
     // Loading state
     if (isLoading) {
         return (
@@ -102,9 +127,6 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
     // Find community
     const community = mockCommunities.find(c => c.id === post.communityId) || mockCommunities[0];
 
-    // Get comments for this post
-    const comments = mockComments.filter(c => c.postId === postId);
-
     const netVotes = post.upvotes - post.downvotes + (userVote === 'up' ? 1 : userVote === 'down' ? -1 : 0);
 
     const handleVote = (direction: 'up' | 'down') => {
@@ -113,14 +135,22 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
         } else {
             setUserVote(direction);
         }
+        // TODO: Connect post voting to socket/API if needed
     };
 
     const handleSubmitComment = () => {
         if (newComment.trim()) {
-            // TODO: Add comment via API
-            console.log('New comment:', newComment);
+            createComment(newComment);
             setNewComment('');
         }
+    };
+
+    const handleReply = (parentId: string, content: string) => {
+        createComment(content, parentId);
+    };
+
+    const handleCommentVote = (commentId: string, direction: 'up' | 'down') => {
+        voteComment(commentId, direction);
     };
 
     // Handle author data from database (different structure)
@@ -281,6 +311,8 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
                     <CommentThread
                         comments={comments}
                         postId={postId}
+                        onReply={handleReply}
+                        onVote={handleCommentVote}
                     />
                 </div>
             </div>

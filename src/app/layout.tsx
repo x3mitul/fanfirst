@@ -5,6 +5,7 @@ import { Navbar, Footer } from "@/components/layout";
 import { LazyWalletProviders } from "@/providers/LazyProviders";
 import { SocketProvider } from "@/providers/SocketProvider";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
+import { PrivyProvider } from "@/providers/PrivyProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,13 +34,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Auth0Provider>
-          <SocketProvider>
-            <LazyWalletProviders>
-              <Navbar />
-              <main className="min-h-screen">{children}</main>
-              <Footer />
-            </LazyWalletProviders>
-          </SocketProvider>
+          <PrivyProvider>
+            <SocketProvider>
+              <LazyWalletProviders>
+                <Navbar />
+                <main className="min-h-screen">{children}</main>
+                <Footer />
+              </LazyWalletProviders>
+            </SocketProvider>
+          </PrivyProvider>
         </Auth0Provider>
       </body>
     </html>

@@ -29,6 +29,22 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+
+  // Redirect legacy/incorrect routes
+  async redirects() {
+    return [
+      {
+        source: '/api/auth/me',
+        destination: '/auth/profile',
+        permanent: false,
+      },
+      {
+        source: '/api/auth/:path*',
+        destination: '/auth/:path*',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

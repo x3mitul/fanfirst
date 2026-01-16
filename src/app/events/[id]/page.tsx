@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -19,22 +19,53 @@ import { mockEvents } from "@/lib/mock-data";
 import { formatDate, formatPrice } from "@/lib/utils";
 import Image from "next/image";
 import { useTicketPurchase } from "@/hooks";
+import { useUser } from "@auth0/nextjs-auth0/client";
 import { useStore } from "@/lib/store";
 import QuizModal from "@/components/quiz/QuizModal";
+import { AdaptivePurchaseButton } from "@/components/web3/AdaptivePurchaseButton";
+import { AIDecisionPanel } from "@/components/web3/AIDecisionPanel";
 
 export default function EventDetailPage() {
     const params = useParams();
     const router = useRouter();
     const [selectedTier, setSelectedTier] = useState<string | null>(null);
+    const { buyTicket, isPending, isSuccess, error, isConnected } = useTicketPurchase();
+    const { user } = useUser();
+    const { isAuthenticated } = useStore();
+    const [isReminded, setIsReminded] = useState(false);
+    const [isLoadingReminder, setIsLoadingReminder] = useState(false);
     const [showQuizPrompt, setShowQuizPrompt] = useState(false);
     const [showQuizModal, setShowQuizModal] = useState(false);
     const [showWalletPrompt, setShowWalletPrompt] = useState(false);
     const [quizCompleted, setQuizCompleted] = useState(false);
-    const { buyTicket, isPending, isSuccess, error, isConnected } = useTicketPurchase();
-    const { isAuthenticated } = useStore();
     const [hasSeenQuizPrompt, setHasSeenQuizPrompt] = useState(false);
 
     const event = mockEvents.find((e) => e.id === params.id);
+
+    useEffect(() => {
+        if (user && event) {
+            fetch(`/api/events/${event.id}/reminders`)
+                .then(res => res.json())
+                .then(data => setIsReminded(data.isReminded))
+                .catch(err => console.error("Failed to fetch reminder status", err));
+        }
+    }, [user, event]);
+
+    const handleToggleReminder = async () => {
+        if (!user || !event) return;
+        setIsLoadingReminder(true);
+        try {
+            const res = await fetch(`/api/events/${event.id}/reminders`, { method: 'POST' });
+            if (res.ok) {
+                const data = await res.json();
+                setIsReminded(data.isReminded);
+            }
+        } catch (error) {
+            console.error("Failed to toggle reminder", error);
+        } finally {
+            setIsLoadingReminder(false);
+        }
+    };
 
     const handlePurchase = async () => {
         if (!selectedTier || !event) return;
@@ -137,7 +168,13 @@ export default function EventDetailPage() {
                                     <Button variant="secondary" className="rounded-full w-12 h-12 p-0 flex items-center justify-center">
                                         <Share2 className="w-5 h-5" />
                                     </Button>
-                                    <Button className="rounded-full px-8 h-12">Set Reminder</Button>
+                                    <Button
+                                        className={`rounded-full px-8 h-12 ${isReminded ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                        onClick={handleToggleReminder}
+                                        disabled={isLoadingReminder || !user}
+                                    >
+                                        {isLoadingReminder ? "Loading..." : isReminded ? "Reminder Set ✓" : "Set Reminder"}
+                                    </Button>
                                 </div>
                             </div>
                         </motion.div>
@@ -247,16 +284,16 @@ export default function EventDetailPage() {
                                         </div>
                                     )}
 
-                                    <Button
-                                        className="w-full h-16 rounded-full text-lg font-black uppercase italic"
-                                        disabled={!selectedTier || isPending}
-                                        onClick={handlePurchase}
-                                    >
-                                        {isPending ? "Processing..." : "Purchase NFT Ticket"}
-                                    </Button>
+                                    <AdaptivePurchaseButton
+                                        ticketPrice={selectedTier ? formatPrice(event.ticketTiers.find(t => t.id === selectedTier)?.price || 0) : 'Select tier'}
+                                        tierName={selectedTier ? event.ticketTiers.find(t => t.id === selectedTier)?.name || '' : ''}
+                                        onWalletPurchase={handlePurchase}
+                                        isPending={isPending}
+                                        disabled={!selectedTier}
+                                    />
 
                                     <p className="text-center text-[10px] text-white/30 uppercase tracking-widest mt-6">
-                                        On-chain verify via FanFirst protocol
+                                        AI adapts Web3 to your comfort level
                                     </p>
                                 </div>
                             </div>
@@ -366,6 +403,9 @@ export default function EventDetailPage() {
                 onComplete={handleQuizComplete}
                 artistName={event.artist}
             />
+
+            {/* AI Decision Panel */}
+            <AIDecisionPanel />
         </div>
     );
 }

@@ -137,7 +137,14 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     // Authenticate when user is set
     useEffect(() => {
+        console.log('[SocketProvider] Auth check:', {
+            socketConnected: !!socket,
+            hasUser: !!currentUser,
+            userName: currentUser?.name
+        });
+
         if (socket && currentUser) {
+            console.log('[SocketProvider] Emitting auth event for:', currentUser.name);
             socket.emit('auth', currentUser);
         }
     }, [socket, currentUser]);
