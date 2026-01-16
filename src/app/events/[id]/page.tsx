@@ -11,24 +11,35 @@ import {
     ShieldCheck,
     ArrowLeft,
     Share2,
-    Info
+    Info,
+    Brain
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { mockEvents } from "@/lib/mock-data";
 import { formatDate, formatPrice } from "@/lib/utils";
 import Image from "next/image";
 import { useTicketPurchase } from "@/hooks";
+import { useStore } from "@/lib/store";
 
 export default function EventDetailPage() {
     const params = useParams();
     const router = useRouter();
     const [selectedTier, setSelectedTier] = useState<string | null>(null);
-    const { buyTicket, isPending, isSuccess, error, hash } = useTicketPurchase();
+    const [showQuizPrompt, setShowQuizPrompt] = useState(false);
+    const { buyTicket, isPending, isSuccess, error } = useTicketPurchase();
+    const { isAuthenticated } = useStore();
 
     const event = mockEvents.find((e) => e.id === params.id);
 
     const handlePurchase = async () => {
         if (!selectedTier || !event) return;
+
+        // If user is authenticated, show quiz prompt first
+        if (isAuthenticated && !showQuizPrompt) {
+            setShowQuizPrompt(true);
+            return;
+        }
+
         const tier = event.ticketTiers.find(t => t.id === selectedTier);
         if (tier) {
             try {
@@ -37,6 +48,11 @@ export default function EventDetailPage() {
                 console.error("Purchase error:", err);
             }
         }
+    };
+
+    const goToQuiz = () => {
+        // Redirect to quiz with artist context
+        router.push(`/quiz?artist=${encodeURIComponent(event?.artist || '')}&eventId=${event?.id}`);
     };
 
     if (!event) {
@@ -233,6 +249,58 @@ export default function EventDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* FanIQ Quiz Prompt Modal */}
+            {showQuizPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-gray-900 border border-white/10 rounded-3xl p-8 max-w-md w-full"
+                    >
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
+                                <Brain className="w-8 h-8 text-purple-400" />
+                            </div>
+                            <h2 className="text-2xl font-black uppercase italic mb-2">Prove Your Fandom</h2>
+                            <p className="text-white/60 text-sm">
+                                Real fans get priority access! Take the FanIQ quiz to boost your position in the ticket queue.
+                            </p>
+                        </div>
+
+                        <div className="space-y-4 mb-6">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold">1</div>
+                                <span className="text-sm text-white/80">Answer {event.artist} trivia questions</span>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                                <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-400 text-sm font-bold">2</div>
+                                <span className="text-sm text-white/80">Earn Fandom Score points</span>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                                <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400 text-sm font-bold">3</div>
+                                <span className="text-sm text-white/80">Top scorers get early access to tickets</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <Button
+                                className="w-full h-14 rounded-full text-lg font-black uppercase"
+                                onClick={goToQuiz}
+                            >
+                                <Brain className="w-5 h-5 mr-2" />
+                                Take FanIQ Quiz
+                            </Button>
+                            <button
+                                onClick={() => setShowQuizPrompt(false)}
+                                className="w-full py-3 text-white/40 hover:text-white/60 text-sm transition-colors"
+                            >
+                                Skip for now
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
