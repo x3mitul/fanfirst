@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Brain,
     Clock,
     CheckCircle2,
-    XCircle,
     Trophy,
     Zap,
     ArrowRight,
-    Users2,
     Flame
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
@@ -93,22 +92,21 @@ export default function QuizArenaPage() {
         fetchQuiz();
     }, [quizId]);
 
-    // Timer countdown
-    useEffect(() => {
-        if (phase !== 'playing' || timeLeft <= 0) return;
+    // Move to next question - defined first for use in handleTimeUp
+    const moveToNextQuestion = useCallback(() => {
+        if (!quiz) return;
 
-        const timer = setInterval(() => {
-            setTimeLeft(t => {
-                if (t <= 1) {
-                    handleTimeUp();
-                    return 0;
-                }
-                return t - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [phase, timeLeft]);
+        if (currentIndex + 1 >= quiz.questions.length) {
+            // Will be handled by submitQuiz call
+            setPhase('completed');
+        } else {
+            setCurrentIndex(prev => prev + 1);
+            setSelectedAnswer(null);
+            setIsAnswered(false);
+            setTimeLeft(quiz.questions[currentIndex + 1].timeLimit);
+            questionStartTime.current = Date.now();
+        }
+    }, [quiz, currentIndex]);
 
     const handleTimeUp = useCallback(() => {
         if (!isAnswered && quiz) {
@@ -126,7 +124,24 @@ export default function QuizArenaPage() {
 
             setTimeout(() => moveToNextQuestion(), 1500);
         }
-    }, [isAnswered, quiz, currentIndex]);
+    }, [isAnswered, quiz, currentIndex, moveToNextQuestion]);
+
+    // Timer countdown
+    useEffect(() => {
+        if (phase !== 'playing' || timeLeft <= 0) return;
+
+        const timer = setInterval(() => {
+            setTimeLeft(t => {
+                if (t <= 1) {
+                    handleTimeUp();
+                    return 0;
+                }
+                return t - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [phase, timeLeft, handleTimeUp]);
 
     const startQuiz = async () => {
         if (!isAuthenticated || !user || !quiz) return;
@@ -169,19 +184,13 @@ export default function QuizArenaPage() {
         setTimeout(() => moveToNextQuestion(), 1000);
     };
 
-    const moveToNextQuestion = () => {
-        if (!quiz) return;
-
-        if (currentIndex + 1 >= quiz.questions.length) {
+    // Submit quiz when phase changes to completed
+    useEffect(() => {
+        if (phase === 'completed' && attemptId && responses.length > 0) {
             submitQuiz();
-        } else {
-            setCurrentIndex(prev => prev + 1);
-            setSelectedAnswer(null);
-            setIsAnswered(false);
-            setTimeLeft(quiz.questions[currentIndex + 1].timeLimit);
-            questionStartTime.current = Date.now();
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phase]);
 
     const submitQuiz = async () => {
         if (!attemptId) return;
@@ -375,11 +384,13 @@ export default function QuizArenaPage() {
 
                             {/* Image if present */}
                             {currentQuestion.imageUrl && (
-                                <div className="mb-6 rounded-xl overflow-hidden">
-                                    <img
+                                <div className="mb-6 rounded-xl overflow-hidden relative h-48">
+                                    <Image
                                         src={currentQuestion.imageUrl}
                                         alt="Question visual"
-                                        className="w-full object-cover"
+                                        fill
+                                        className="object-cover"
+                                        unoptimized
                                     />
                                 </div>
                             )}
@@ -394,10 +405,10 @@ export default function QuizArenaPage() {
                                         whileHover={!isAnswered ? { scale: 1.02 } : {}}
                                         whileTap={!isAnswered ? { scale: 0.98 } : {}}
                                         className={`w-full p-4 rounded-xl text-left font-medium transition-all ${isAnswered && selectedAnswer === option
-                                                ? 'bg-purple-500 text-white border-2 border-purple-400'
-                                                : isAnswered
-                                                    ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                                                    : 'bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-purple-500/50'
+                                            ? 'bg-purple-500 text-white border-2 border-purple-400'
+                                            : isAnswered
+                                                ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
+                                                : 'bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-purple-500/50'
                                             }`}
                                     >
                                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 text-sm mr-3">
