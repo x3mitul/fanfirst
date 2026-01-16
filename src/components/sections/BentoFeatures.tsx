@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Ticket, Shield, Music, Star, Zap, Users } from "lucide-react";
+import Link from "next/link";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -16,6 +17,7 @@ const features = [
         image: "/trail-images/image1.avif",
         icon: Ticket,
         size: "large",
+        href: "/events",
     },
     {
         title: "Verified Fans",
@@ -25,6 +27,7 @@ const features = [
         image: "/trail-images/image2.jpg",
         icon: Shield,
         size: "medium",
+        href: "/how-it-works",
     },
     {
         title: "All Your Events",
@@ -34,6 +37,7 @@ const features = [
         image: "/trail-images/image3.jpg",
         icon: Music,
         size: "medium",
+        href: "/dashboard/tickets",
     },
     {
         title: "Earn Rewards",
@@ -43,6 +47,7 @@ const features = [
         image: "/trail-images/image4.jpg",
         icon: Star,
         size: "large",
+        href: "/community",
     },
     {
         title: "Instant Transfer",
@@ -52,6 +57,7 @@ const features = [
         image: "/trail-images/image5.jpg",
         icon: Zap,
         size: "small",
+        href: "/dashboard",
     },
     {
         title: "Join the Community",
@@ -61,12 +67,13 @@ const features = [
         image: "/trail-images/image6.jpg",
         icon: Users,
         size: "small",
+        href: "/community",
     },
 ];
 
 export function BentoFeatures() {
     const containerRef = useRef<HTMLDivElement>(null);
-    const cardsRef = useRef<HTMLDivElement[]>([]);
+    const cardsRef = useRef<HTMLAnchorElement[]>([]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -130,8 +137,9 @@ export function BentoFeatures() {
                     };
 
                     return (
-                        <div
+                        <Link
                             key={feature.title}
+                            href={feature.href}
                             ref={(el) => { if (el) cardsRef.current[index] = el; }}
                             className={`
                                 ${sizeClasses[feature.size as keyof typeof sizeClasses]}
@@ -139,11 +147,11 @@ export function BentoFeatures() {
                                 relative rounded-3xl p-8 overflow-hidden cursor-pointer
                                 group transition-all duration-500 ease-out
                                 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/10
-                                hover:z-10
+                                hover:z-10 block
                             `}
                         >
                             {/* Background Image */}
-                            <div className="absolute inset-0 z-0">
+                            <div className="absolute inset-0 z-0 pointer-events-none">
                                 <img
                                     src={feature.image}
                                     alt=""
@@ -154,14 +162,14 @@ export function BentoFeatures() {
 
                             {/* Animated background glow on hover */}
                             <div
-                                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-[1]"
+                                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-[1] pointer-events-none"
                                 style={{
                                     background: 'radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%)',
                                 }}
                             />
 
                             {/* Content */}
-                            <div className="relative z-10 h-full flex flex-col justify-between">
+                            <div className="relative z-10 h-full flex flex-col justify-between pointer-events-none">
                                 <div>
                                     <Icon className="w-10 h-10 text-white/80 mb-4 group-hover:scale-110 group-hover:text-white transition-all duration-300" />
                                     <h3 className="text-3xl font-black text-white mb-1 group-hover:translate-y-[-4px] transition-transform duration-300">
@@ -178,16 +186,16 @@ export function BentoFeatures() {
                             </div>
 
                             {/* Hover border effect */}
-                            <div className="absolute inset-0 rounded-3xl border-2 border-white/0 group-hover:border-white/20 transition-all duration-500" />
+                            <div className="absolute inset-0 rounded-3xl border-2 border-white/0 group-hover:border-white/20 transition-all duration-500 pointer-events-none" />
 
                             {/* Corner accent */}
                             <div
-                                className="absolute top-0 right-0 w-32 h-32 opacity-20 group-hover:opacity-40 transition-opacity duration-500"
+                                className="absolute top-0 right-0 w-32 h-32 opacity-20 group-hover:opacity-40 transition-opacity duration-500 z-20 pointer-events-none"
                                 style={{
                                     background: 'radial-gradient(circle at top right, white 0%, transparent 70%)',
                                 }}
                             />
-                        </div>
+                        </Link>
                     );
                 })}
             </div>

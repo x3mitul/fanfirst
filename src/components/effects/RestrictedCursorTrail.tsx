@@ -147,7 +147,7 @@ export function RestrictedCursorTrail({ enabled = true }: RestrictedCursorTrailP
 
             if (collageRef.current) {
                 gsap.to(collageRef.current, {
-                    opacity: 1 - progress,
+                    autoAlpha: 1 - progress,
                     scale: 1 - (progress * 0.3),
                     y: -(progress * 100),
                     duration: 0.1,
@@ -229,11 +229,11 @@ export function RestrictedCursorTrail({ enabled = true }: RestrictedCursorTrailP
                 </div>
             )}
 
-            <div className="fixed inset-0 z-10">
+            <div className="fixed inset-0 z-10 pointer-events-none">
                 {(introComplete || showIntro) && (
                     <div
                         ref={collageRef}
-                        className="collage-container fixed right-8 top-0"
+                        className="collage-container fixed right-8 top-0 pointer-events-none"
                         style={{
                             width: '60%',
                             height: '100vh',
