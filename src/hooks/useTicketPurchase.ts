@@ -1,22 +1,14 @@
 "use client";
 
-import { useState } from 'react';
-import {
-    useWriteContract,
-    useWaitForTransactionReceipt,
-    useAccount,
-    useChainId
-} from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi';
 import { TICKET_NFT_ABI } from '@/lib/ticket-nft-abi';
 import { getContractAddress } from '@/lib/contract-config';
 import { parseEther } from 'viem';
 
 export function useTicketPurchase() {
-    const { address } = useAccount();
+    const { address, isConnected } = useAccount();
     const chainId = useChainId();
     const contractAddress = getContractAddress(chainId);
-
-    const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
 
     const {
         writeContract,
@@ -52,5 +44,7 @@ export function useTicketPurchase() {
         isSuccess: isConfirmed,
         error: writeError || confirmError,
         hash,
+        isConnected,
+        address,
     };
 }

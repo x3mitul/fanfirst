@@ -42,6 +42,7 @@ const io = new Server(httpServer, {
 // Lightweight in-memory stores (for real-time state only, not persistence)
 const typingUsers: Map<string, Set<string>> = new Map(); // postId -> Set of userIds
 const onlineUsers: Map<string, Set<string>> = new Map(); // communityId -> Set of userIds
+const quizParticipants: Map<string, Set<string>> = new Map(); // quizId -> Set of userIds
 
 io.on('connection', (socket: Socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
@@ -279,6 +280,261 @@ io.on('connection', (socket: Socket) => {
         }
     });
 
+    // ============================================
+    // FANIQ ARENA - Real-time Quiz Events
+    // ============================================
+
+    let currentQuiz: string | null = null;
+
+    // Join a quiz room
+    socket.on('quiz:join', async (quizId: string) => {
+        if (currentQuiz) {
+            socket.leave(`quiz:${currentQuiz}`);
+            quizParticipants.get(currentQuiz)?.delete(currentUser?.id || '');
+        }
+
+        currentQuiz = quizId;
+        socket.join(`quiz:${quizId}`);
+
+        if (!quizParticipants.has(quizId)) {
+            quizParticipants.set(quizId, new Set());
+        }
+        if (currentUser) {
+            quizParticipants.get(quizId)!.add(currentUser.id);
+        }
+
+        // Broadcast participant count
+        io.to(`quiz:${quizId}`).emit('quiz:participant:count',
+            quizParticipants.get(quizId)?.size || 0
+        );
+
+        console.log(`[Socket] ${currentUser?.name || socket.id} joined quiz: ${quizId}`);
+    });
+
+    // Leave quiz
+    socket.on('quiz:leave', (quizId: string) => {
+        socket.leave(`quiz:${quizId}`);
+        quizParticipants.get(quizId)?.delete(currentUser?.id || '');
+        currentQuiz = null;
+
+        io.to(`quiz:${quizId}`).emit('quiz:participant:count',
+            quizParticipants.get(quizId)?.size || 0
+        );
+    });
+
+    // Submit quiz answer
+    socket.on('quiz:answer', async (data: {
+        quizId: string;
+        attemptId: string;
+        questionId: string;
+        answer: string;
+        responseTime: number;
+    }) => {
+        if (!currentUser) return;
+
+        try {
+            // Get the question to check answer
+            const question = await prisma.quizQuestion.findUnique({
+                where: { id: data.questionId }
+            });
+
+            if (!question) return;
+
+            const isCorrect = data.answer === question.correctAnswer;
+
+            // Save response to database
+            await prisma.quizResponse.create({
+                data: {
+                    attemptId: data.attemptId,
+                    questionId: data.questionId,
+                    answer: data.answer,
+                    isCorrect,
+                    responseTime: data.responseTime
+                }
+            });
+
+            // Update attempt statistics
+            const attempt = await prisma.quizAttempt.findUnique({
+                where: { id: data.attemptId }
+            });
+
+            if (attempt) {
+                const newStreak = isCorrect ? attempt.streak + 1 : 0;
+                const newMaxStreak = Math.max(attempt.maxStreak, newStreak);
+                const newCorrect = isCorrect ? attempt.correctAnswers + 1 : attempt.correctAnswers;
+
+                await prisma.quizAttempt.update({
+                    where: { id: data.attemptId },
+                    data: {
+                        correctAnswers: newCorrect,
+                        streak: newStreak,
+                        maxStreak: newMaxStreak
+                    }
+                });
+
+                // Send result back to user
+                socket.emit('quiz:answer:result', {
+                    isCorrect,
+                    streak: newStreak,
+                    correctAnswers: newCorrect
+                });
+            }
+
+            console.log(`[Socket] Quiz answer from ${currentUser.name}: ${isCorrect ? '✓' : '✗'}`);
+        } catch (error) {
+            console.error('[Socket] Error processing quiz answer:', error);
+        }
+    });
+
+    // Request next question (for live quizzes)
+    socket.on('quiz:next', async (data: { quizId: string; questionIndex: number }) => {
+        try {
+            const questions = await prisma.quizQuestion.findMany({
+                where: { quizId: data.quizId },
+                orderBy: { orderIndex: 'asc' }
+            });
+
+            const nextQuestion = questions[data.questionIndex];
+            if (nextQuestion) {
+                // Only send to the requesting socket for async quizzes
+                // For live quizzes, the organizer would broadcast to all
+                socket.emit('quiz:question', {
+                    id: nextQuestion.id,
+                    question: nextQuestion.question,
+                    type: nextQuestion.type,
+                    options: nextQuestion.options,
+                    imageUrl: nextQuestion.imageUrl,
+                    timeLimit: nextQuestion.timeLimit,
+                    difficulty: nextQuestion.difficulty,
+                    questionNumber: data.questionIndex + 1,
+                    totalQuestions: questions.length
+                    // Note: correctAnswer is NOT sent to client
+                });
+            }
+        } catch (error) {
+            console.error('[Socket] Error fetching next question:', error);
+        }
+    });
+
+    // Complete quiz attempt
+    socket.on('quiz:complete', async (data: { attemptId: string }) => {
+        if (!currentUser) return;
+
+        try {
+            const attempt = await prisma.quizAttempt.findUnique({
+                where: { id: data.attemptId },
+                include: {
+                    responses: true,
+                    quiz: true
+                }
+            });
+
+            if (!attempt || attempt.status === 'completed') return;
+
+            // Calculate final scores
+            const responseTimes = attempt.responses.map(r => r.responseTime);
+            const avgResponseTime = responseTimes.length > 0
+                ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+                : 0;
+
+            // Calculate standard deviation
+            const mean = avgResponseTime;
+            const squareDiffs = responseTimes.map(t => Math.pow(t - mean, 2));
+            const avgSquareDiff = squareDiffs.length > 0
+                ? squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length
+                : 0;
+            const stdDev = Math.sqrt(avgSquareDiff);
+
+            // Scoring formula
+            const accuracyScore = (attempt.correctAnswers / attempt.totalQuestions) * 100;
+            const clampedAvg = Math.max(avgResponseTime, 2000);
+            const speedScore = Math.max(0, 100 - ((clampedAvg - 2000) / 50));
+            const idealStdDev = 800;
+            const stdDevDiff = Math.abs(stdDev - idealStdDev);
+            const consistencyScore = Math.max(0, 100 - (stdDevDiff / 20));
+            const finalScore = (accuracyScore * 0.5) + (speedScore * 0.3) + (consistencyScore * 0.2);
+
+            // Calculate Fandom bonus
+            const isPerfect = attempt.correctAnswers === attempt.totalQuestions;
+            let fandomBonus = attempt.correctAnswers * 5 + (isPerfect ? 10 : 0);
+            const streakMultiplier = Math.min(1 + (attempt.maxStreak * 0.1), 2);
+            fandomBonus = Math.min(Math.round(fandomBonus * streakMultiplier), 50);
+
+            // Update attempt
+            const updatedAttempt = await prisma.quizAttempt.update({
+                where: { id: data.attemptId },
+                data: {
+                    avgResponseTime,
+                    responseTimeStdDev: stdDev,
+                    finalScore,
+                    speedScore,
+                    accuracyScore,
+                    consistencyScore,
+                    status: 'completed',
+                    completedAt: new Date()
+                }
+            });
+
+            // Update user's fandom score
+            if (fandomBonus > 0) {
+                await prisma.user.update({
+                    where: { id: attempt.userId },
+                    data: { fandomScore: { increment: fandomBonus } }
+                });
+            }
+
+            // Calculate rank
+            const betterAttempts = await prisma.quizAttempt.count({
+                where: {
+                    quizId: attempt.quizId,
+                    status: 'completed',
+                    finalScore: { gt: finalScore }
+                }
+            });
+            const rank = betterAttempts + 1;
+
+            await prisma.quizAttempt.update({
+                where: { id: data.attemptId },
+                data: { rank }
+            });
+
+            // Send completion result
+            socket.emit('quiz:complete:result', {
+                attempt: { ...updatedAttempt, rank },
+                finalScore: Math.round(finalScore * 100) / 100,
+                accuracyScore: Math.round(accuracyScore * 100) / 100,
+                speedScore: Math.round(speedScore * 100) / 100,
+                consistencyScore: Math.round(consistencyScore * 100) / 100,
+                fandomBonus,
+                rank
+            });
+
+            // Broadcast updated leaderboard to quiz room
+            const topAttempts = await prisma.quizAttempt.findMany({
+                where: { quizId: attempt.quizId, status: 'completed' },
+                include: { user: { select: { id: true, name: true, avatar: true } } },
+                orderBy: { finalScore: 'desc' },
+                take: 10
+            });
+
+            io.to(`quiz:${attempt.quizId}`).emit('quiz:leaderboard:update',
+                topAttempts.map((a, i) => ({
+                    rank: i + 1,
+                    userId: a.userId,
+                    userName: a.user.name,
+                    userAvatar: a.user.avatar,
+                    score: Math.round(a.finalScore * 100) / 100,
+                    correctAnswers: a.correctAnswers,
+                    maxStreak: a.maxStreak
+                }))
+            );
+
+            console.log(`[Socket] Quiz completed by ${currentUser.name}: Score ${finalScore.toFixed(2)}, Rank #${rank}`);
+        } catch (error) {
+            console.error('[Socket] Error completing quiz:', error);
+        }
+    });
+
     // Disconnect
     socket.on('disconnect', () => {
         if (currentCommunity && currentUser) {
@@ -287,6 +543,12 @@ io.on('connection', (socket: Socket) => {
                 communityId: currentCommunity,
                 count: onlineUsers.get(currentCommunity)?.size || 0,
             });
+        }
+        if (currentQuiz && currentUser) {
+            quizParticipants.get(currentQuiz)?.delete(currentUser.id);
+            io.to(`quiz:${currentQuiz}`).emit('quiz:participant:count',
+                quizParticipants.get(currentQuiz)?.size || 0
+            );
         }
         console.log(`[Socket] Client disconnected: ${socket.id}`);
     });
