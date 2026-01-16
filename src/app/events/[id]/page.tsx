@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -23,6 +23,8 @@ import { useUser } from "@auth0/nextjs-auth0/client";
 import { useStore } from "@/lib/store";
 import dynamic from "next/dynamic";
 import { AdaptivePurchaseButton } from "@/components/web3/AdaptivePurchaseButton";
+import { toggleReminder } from "@/actions/events";
+import type { Event } from "@/lib/types";
 
 const QuizModal = dynamic(() => import("@/components/quiz/QuizModal"), {
     loading: () => null
@@ -40,17 +42,17 @@ export default function EventDetailPage() {
     const { user } = useUser();
     const { isAuthenticated } = useStore();
     const [isReminded, setIsReminded] = useState(false);
-    const [isLoadingReminder, setIsLoadingReminder] = useState(false);
+    const [isReminderPending, startTransition] = useTransition();
     const [showQuizPrompt, setShowQuizPrompt] = useState(false);
     const [showQuizModal, setShowQuizModal] = useState(false);
     const [showWalletPrompt, setShowWalletPrompt] = useState(false);
     const [quizCompleted, setQuizCompleted] = useState(false);
     const [hasSeenQuizPrompt, setHasSeenQuizPrompt] = useState(false);
 
-    const event = mockEvents.find((e) => e.id === params.id);
-
     useEffect(() => {
         if (user && event) {
+            // Initial check can still use fetch or be preloaded server-side
+            // prioritizing keeping current behavior for initial load but refactoring toggle
             fetch(`/api/events/${event.id}/reminders`)
                 .then(res => res.json())
                 .then(data => setIsReminded(data.isReminded))
@@ -58,20 +60,27 @@ export default function EventDetailPage() {
         }
     }, [user, event]);
 
-    const handleToggleReminder = async () => {
+    const handleToggleReminder = () => {
         if (!user || !event) return;
-        setIsLoadingReminder(true);
-        try {
-            const res = await fetch(`/api/events/${event.id}/reminders`, { method: 'POST' });
-            if (res.ok) {
-                const data = await res.json();
-                setIsReminded(data.isReminded);
+
+        // Optimistic update
+        setIsReminded(prev => !prev);
+
+        startTransition(async () => {
+            try {
+                const result = await toggleReminder(event.id);
+                if (result.success && result.isReminded !== undefined) {
+                    setIsReminded(result.isReminded);
+                } else {
+                    // Revert on failure
+                    console.error(result.error);
+                    setIsReminded(prev => !prev);
+                }
+            } catch (error) {
+                console.error("Failed to toggle reminder", error);
+                setIsReminded(prev => !prev);
             }
-        } catch (error) {
-            console.error("Failed to toggle reminder", error);
-        } finally {
-            setIsLoadingReminder(false);
-        }
+        });
     };
 
     const handlePurchase = async () => {
@@ -132,8 +141,8 @@ export default function EventDetailPage() {
             {/* Hero Section */}
             <div className="relative h-[60vh] w-full overflow-hidden">
                 <Image
-                    src={event.image}
-                    alt={event.title}
+                    src={event.image || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1600&h=900&fit=crop"}
+                    alt={event.title || "Event Image"}
                     fill
                     className="object-cover"
                     priority
@@ -179,9 +188,9 @@ export default function EventDetailPage() {
                                     <Button
                                         className={`rounded-full px-8 h-12 ${isReminded ? 'bg-green-600 hover:bg-green-700' : ''}`}
                                         onClick={handleToggleReminder}
-                                        disabled={isLoadingReminder || !user}
+                                        disabled={isReminderPending || !user}
                                     >
-                                        {isLoadingReminder ? "Loading..." : isReminded ? "Reminder Set ✓" : "Set Reminder"}
+                                        {isReminderPending ? "Loading..." : isReminded ? "Reminder Set ✓" : "Set Reminder"}
                                     </Button>
                                 </div>
                             </div>
@@ -224,8 +233,8 @@ export default function EventDetailPage() {
                             <div className="flex items-center gap-6 p-6 bg-white/5 border border-white/10 rounded-3xl">
                                 <div className="relative w-24 h-24 rounded-2xl overflow-hidden grayscale hover:grayscale-0 transition-all duration-500">
                                     <Image
-                                        src={event.artistImage}
-                                        alt={event.artist}
+                                        src={event.artistImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&h=200&fit=crop"}
+                                        alt={event.artist || "Artist"}
                                         fill
                                         className="object-cover"
                                         sizes="(max-width: 768px) 100px, 96px"
@@ -247,7 +256,7 @@ export default function EventDetailPage() {
                                 <h2 className="text-2xl font-black uppercase italic mb-8 tracking-tight">Select Passes</h2>
 
                                 <div className="space-y-4 mb-8">
-                                    {event.ticketTiers.map((tier) => (
+                                    {event.ticketTiers?.map((tier) => (
                                         <button
                                             key={tier.id}
                                             onClick={() => setSelectedTier(tier.id)}
