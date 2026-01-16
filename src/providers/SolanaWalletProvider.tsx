@@ -4,6 +4,7 @@ import { useMemo, useCallback, useState, createContext, useContext, ReactNode } 
 import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-adapter-react';
 import { WalletError, WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { clusterApiUrl } from '@solana/web3.js';
+import NextImage from 'next/image';
 
 // Import Solana wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -70,9 +71,12 @@ function CustomWalletModal() {
               className="w-full flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <img
+                <NextImage
                   src={wallet.adapter.icon}
                   alt={wallet.adapter.name}
+                  width={32}
+                  height={32}
+                  unoptimized
                   className="w-8 h-8 rounded"
                 />
                 <span className="text-white font-medium">{wallet.adapter.name}</span>
