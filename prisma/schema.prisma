@@ -218,7 +218,6 @@ model ProposalOption {
   votes      Int      @default(0)
 }
 
-<<<<<<< HEAD
 model Comment {
   id        String   @id @default(uuid())
   content   String
@@ -247,7 +246,8 @@ model CommentVote {
   createdAt DateTime @default(now())
 
   @@unique([commentId, userId])
-=======
+}
+
 // ============================================
 // FANIQ ARENA (Quiz System)
 // ============================================
@@ -362,5 +362,4 @@ model QuizUserStats {
   @@unique([visitorId, artistName])
   @@index([artistName, bestScore])
   @@index([visitorId])
->>>>>>> origin/main
 }

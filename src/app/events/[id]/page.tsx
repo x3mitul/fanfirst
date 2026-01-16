@@ -19,31 +19,24 @@ import { mockEvents } from "@/lib/mock-data";
 import { formatDate, formatPrice } from "@/lib/utils";
 import Image from "next/image";
 import { useTicketPurchase } from "@/hooks";
-<<<<<<< HEAD
 import { useUser } from "@auth0/nextjs-auth0/client";
-=======
 import { useStore } from "@/lib/store";
 import QuizModal from "@/components/quiz/QuizModal";
->>>>>>> origin/main
 
 export default function EventDetailPage() {
     const params = useParams();
     const router = useRouter();
     const [selectedTier, setSelectedTier] = useState<string | null>(null);
-<<<<<<< HEAD
-    const { buyTicket, isPending, isSuccess, error, hash } = useTicketPurchase();
+    const { buyTicket, isPending, isSuccess, error, isConnected } = useTicketPurchase();
     const { user } = useUser();
+    const { isAuthenticated } = useStore();
     const [isReminded, setIsReminded] = useState(false);
     const [isLoadingReminder, setIsLoadingReminder] = useState(false);
-=======
     const [showQuizPrompt, setShowQuizPrompt] = useState(false);
     const [showQuizModal, setShowQuizModal] = useState(false);
     const [showWalletPrompt, setShowWalletPrompt] = useState(false);
     const [quizCompleted, setQuizCompleted] = useState(false);
-    const { buyTicket, isPending, isSuccess, error, isConnected } = useTicketPurchase();
-    const { isAuthenticated } = useStore();
     const [hasSeenQuizPrompt, setHasSeenQuizPrompt] = useState(false);
->>>>>>> origin/main
 
     const event = mockEvents.find((e) => e.id === params.id);
 
