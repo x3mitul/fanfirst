@@ -1,0 +1,11 @@
+# Docker ignore patterns for faster builds
+node_modules
+.next
+.git
+*.log
+.env*
+!.env.example
+.turbo
+coverage
+.vscode
+.idea

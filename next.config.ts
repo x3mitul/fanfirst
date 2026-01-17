@@ -6,6 +6,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for Docker/Railway deployment
+  output: 'standalone',
+
   // Performance optimizations
   reactStrictMode: false, // Disable for smoother animations (prevents double-renders in dev)
 

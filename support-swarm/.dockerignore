@@ -1,0 +1,10 @@
+# Docker ignore for support-swarm
+__pycache__
+*.pyc
+*.pyo
+.git
+.env*
+!.env.example
+*.log
+.vscode
+.idea
