@@ -36,6 +36,7 @@ const navLinks = [
     { href: "/resale", label: "MARKET" },
     { href: "/community", label: "COMMUNITY" },
     { href: "/how-it-works", label: "PROTOCOL" },
+    { href: "/support", label: "SUPPORT" },
 ];
 
 export default function NavbarClient({ auth0User }: NavbarClientProps) {
