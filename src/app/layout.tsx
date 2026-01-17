@@ -6,6 +6,7 @@ import { LazyWalletProviders } from "@/providers/LazyProviders";
 import { SocketProvider } from "@/providers/SocketProvider";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { PrivyProvider } from "@/providers/PrivyProvider";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
                 <Navbar />
                 <main className="min-h-screen">{children}</main>
                 <Footer />
+                <Toaster richColors position="bottom-right" theme="dark" />
               </LazyWalletProviders>
             </SocketProvider>
           </PrivyProvider>

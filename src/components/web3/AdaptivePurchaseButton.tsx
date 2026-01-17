@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWeb3Comfort } from '@/hooks/useWeb3Comfort';
 import { Button } from '@/components/ui';
+import NextImage from 'next/image';
 import { Wallet, CreditCard, Sparkles, Brain, ChevronDown, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+import { recordFandomAction } from '@/actions/fandom';
 
 interface AdaptivePurchaseButtonProps {
     ticketPrice: string;
@@ -44,6 +47,12 @@ export function AdaptivePurchaseButton({
         setIsProcessingDemo(false);
         setDemoPurchaseSuccess(true);
         recordTransaction(); // Update transaction count for AI scoring
+
+        // Update Fandom Score for ticket purchase
+        recordFandomAction('ticket_purchase').catch(err =>
+            console.error('[Fandom] Failed to record purchase:', err)
+        );
+
         console.log('🎟️ Demo purchase completed with wallet:', embeddedWallet?.address);
     };
 
@@ -123,9 +132,11 @@ export function AdaptivePurchaseButton({
                     <div className="relative p-6 backdrop-blur-sm bg-black/30 flex flex-col items-center text-center">
                         <div className="bg-white p-2 rounded-xl shadow-lg mb-4">
                             {/* QR Code */}
-                            <img
+                            <NextImage
                                 src={qrUrl}
                                 alt="Ticket QR"
+                                width={128}
+                                height={128}
                                 className="w-32 h-32 rounded-lg mix-blend-multiply"
                             />
                         </div>

@@ -142,8 +142,6 @@ export function useWeb3Comfort() {
                     setAiMessage("👋 Hi! I've simplified the crypto parts for you.");
                 } else if (result.level === 'curious') {
                     setAiMessage("💡 I've enabled both simple & advanced options for you.");
-                } else {
-                    setAiMessage("⚡ AI Web3 Assistant active."); // Fallback for testing
                 }
                 hasShownWelcomeRef.current = true;
 

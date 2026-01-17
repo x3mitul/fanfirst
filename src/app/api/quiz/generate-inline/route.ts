@@ -63,7 +63,7 @@ Return this exact JSON structure:
             const responseText = result.response.text();
 
             // Clean the response - remove any markdown formatting
-            let cleanedResponse = responseText
+            const cleanedResponse = responseText
                 .replace(/```json\n?/g, '')
                 .replace(/```\n?/g, '')
                 .trim();

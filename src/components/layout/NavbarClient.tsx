@@ -362,9 +362,11 @@ export default function NavbarClient({ auth0User }: NavbarClientProps) {
                                                         onClick={() => handleSearchSelect(event.id)}
                                                         className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-background transition-colors text-left"
                                                     >
-                                                        <img
+                                                        <Image
                                                             src={event.image}
                                                             alt={event.title}
+                                                            width={48}
+                                                            height={48}
                                                             className="w-12 h-12 rounded-lg object-cover"
                                                         />
                                                         <div className="flex-1 min-w-0">

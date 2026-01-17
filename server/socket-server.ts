@@ -144,6 +144,13 @@ io.on('connection', (socket: Socket) => {
             // Broadcast to community
             io.to(`community:${postData.communityId}`).emit('post:new', post);
             console.log(`[Socket] New post created: ${post.title}`);
+
+            // Update user's fandom score for posting (+3)
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { fandomScore: { increment: 3 } }
+            });
+            console.log(`[Socket] Fandom score +3 for user ${user.name}`);
         } catch (error) {
             console.error('[Socket] Error creating post:', error);
             socket.emit('error', { message: 'Failed to create post' });

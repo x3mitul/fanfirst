@@ -53,7 +53,7 @@ export async function POST(
         const { id: eventId } = await context.params;
 
         // Ensure user exists in DB
-        let user = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({
             where: { auth0Id: session.user.sub },
         });
 
