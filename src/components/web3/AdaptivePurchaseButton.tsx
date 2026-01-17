@@ -8,6 +8,8 @@ import NextImage from 'next/image';
 import { Wallet, CreditCard, Sparkles, Brain, ChevronDown, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { recordFandomAction } from '@/actions/fandom';
+
 interface AdaptivePurchaseButtonProps {
     ticketPrice: string;
     tierName: string;
@@ -45,6 +47,12 @@ export function AdaptivePurchaseButton({
         setIsProcessingDemo(false);
         setDemoPurchaseSuccess(true);
         recordTransaction(); // Update transaction count for AI scoring
+
+        // Update Fandom Score for ticket purchase
+        recordFandomAction('ticket_purchase').catch(err =>
+            console.error('[Fandom] Failed to record purchase:', err)
+        );
+
         console.log('🎟️ Demo purchase completed with wallet:', embeddedWallet?.address);
     };
 

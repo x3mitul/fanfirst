@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -71,10 +72,18 @@ export default function EventDetailPage() {
                 const result = await toggleReminder(event.id);
                 if (result.success && result.isReminded !== undefined) {
                     setIsReminded(result.isReminded);
+                    if (result.isReminded) {
+                        toast.success("Reminder set successfully! 🔔", {
+                            description: "We'll email you before the event starts."
+                        });
+                    } else {
+                        toast.info("Reminder removed");
+                    }
                 } else {
                     // Revert on failure
                     console.error(result.error);
                     setIsReminded(prev => !prev);
+                    toast.error("Failed to update reminder");
                 }
             } catch (error) {
                 console.error("Failed to toggle reminder", error);

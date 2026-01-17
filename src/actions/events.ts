@@ -9,16 +9,32 @@ import { formatDate } from "@/lib/utils";
 export async function toggleReminder(eventId: string) {
     try {
         const session = await auth0.getSession();
-        if (!session?.user) {
-            return { success: false, error: "Unauthorized" };
+        if (!session?.user?.sub) {
+            return { success: false, error: "Unauthorized: Invalid Session" };
         }
 
-        const user = await prisma.user.findUnique({
+        let user = await prisma.user.findUnique({
             where: { auth0Id: session.user.sub },
         });
 
         if (!user) {
-            return { success: false, error: "User not found" };
+            // Auto-create user if they don't exist yet (lazy sync)
+            try {
+                if (!session.user.email) {
+                    return { success: false, error: "Email required for profile creation" };
+                }
+                user = await prisma.user.create({
+                    data: {
+                        auth0Id: session.user.sub,
+                        email: session.user.email,
+                        name: session.user.name || "Fan",
+                        avatar: session.user.picture,
+                    }
+                });
+            } catch (createError) {
+                console.error("Failed to create user during reminder toggle:", createError);
+                return { success: false, error: "Failed to sync user profile" };
+            }
         }
 
         const existingReminder = await prisma.eventReminder.findUnique({
@@ -70,6 +86,6 @@ export async function toggleReminder(eventId: string) {
 
     } catch (error) {
         console.error("Error toggling reminder:", error);
-        return { success: false, error: "Internal Server Error" };
+        return { success: false, error: `Server Error: ${(error as Error).message}` };
     }
 }

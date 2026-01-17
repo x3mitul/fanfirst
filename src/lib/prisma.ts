@@ -1,4 +1,4 @@
-// Prisma client singleton for Next.js
+// Prisma client singleton for Next.js (Force Reload)
 
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
