@@ -31,9 +31,15 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 const httpServer = createServer();
+
+// CORS origins from environment variable or default to localhost
+const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 const io = new Server(httpServer, {
     cors: {
-        origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+        origin: corsOrigins,
         methods: ['GET', 'POST'],
         credentials: true,
     },

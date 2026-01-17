@@ -80,7 +80,8 @@ export default function SupportPage() {
     }, []);
 
     const connectWebSocket = useCallback(() => {
-        const ws = new WebSocket('ws://localhost:8000/ws/chat');
+        const wsUrl = process.env.NEXT_PUBLIC_SUPPORT_SWARM_URL || 'ws://localhost:8000/ws/chat';
+        const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
             console.log('✅ Connected');
