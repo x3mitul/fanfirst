@@ -15,7 +15,7 @@ import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../prisma/generated/client";
 
 const PORT = process.env.SOCKET_PORT || 3001;
 

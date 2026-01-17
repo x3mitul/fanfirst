@@ -1,0 +1,367 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  output          = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// USERS
+// ============================================
+
+model User {
+  id                  String   @id @default(uuid())
+  auth0Id             String   @unique
+  email               String   @unique
+  name                String
+  avatar              String?
+  fandomScore         Int      @default(0)
+  walletAddress       String?
+  solanaWalletAddress String?
+  spotifyConnected    Boolean  @default(false)
+  eventsAttended      Int      @default(0)
+  vouchesGiven        Int      @default(0)
+  vouchesReceived     Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tickets      Ticket[]
+  posts        CommunityPost[]
+  memberships  CommunityMember[]
+  postVotes    PostVote[]
+  comments     Comment[]
+  commentVotes CommentVote[]
+  reminders    EventReminder[]
+  quizAttempts QuizAttempt[]
+  fanIQBadges  FanIQBadge[]
+}
+
+// ============================================
+// EVENTS & TICKETS
+// ============================================
+
+model Event {
+  id             String   @id @default(uuid())
+  title          String
+  artist         String
+  artistImage    String
+  venue          String
+  location       String
+  date           DateTime
+  time           String
+  image          String
+  description    String
+  category       String // concert, festival, sports, theater, comedy
+  status         String   @default("upcoming") // upcoming, on-sale, sold-out, past
+  totalTickets   Int
+  soldTickets    Int      @default(0)
+  resaleEnabled  Boolean  @default(true)
+  resaleCap      Int? // percentage cap on original price
+  artistRoyalty  Int      @default(10) // percentage
+  minFandomScore Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  ticketTiers TicketTier[]
+  tickets     Ticket[]
+  reminders   EventReminder[]
+}
+
+model EventReminder {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model TicketTier {
+  id          String   @id @default(uuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  price       Float
+  currency    String   @default("USD")
+  description String
+  available   Int
+  total       Int
+  benefits    String[]
+
+  // Relations
+  tickets Ticket[]
+}
+
+model Ticket {
+  id            String     @id @default(uuid())
+  eventId       String
+  event         Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tierId        String
+  tier          TicketTier @relation(fields: [tierId], references: [id])
+  ownerId       String
+  owner         User       @relation(fields: [ownerId], references: [id])
+  originalPrice Float
+  currentPrice  Float
+  purchaseDate  DateTime   @default(now())
+  status        String     @default("active") // active, used, transferred, listed
+  qrCode        String?
+  tokenId       String? // NFT token ID
+  txHash        String? // Blockchain transaction hash
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// ============================================
+// COMMUNITY
+// ============================================
+
+model Community {
+  id          String   @id @default(uuid())
+  name        String
+  artistId    String
+  artistName  String
+  artistImage String
+  description String
+  memberCount Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  posts     CommunityPost[]
+  members   CommunityMember[]
+  proposals GovernanceProposal[]
+}
+
+model CommunityPost {
+  id           String    @id @default(uuid())
+  communityId  String
+  community    Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User      @relation(fields: [authorId], references: [id])
+  title        String
+  content      String
+  type         String    @default("discussion") // discussion, question, photo, news
+  images       String[]
+  upvotes      Int       @default(0)
+  downvotes    Int       @default(0)
+  commentCount Int       @default(0)
+  isPinned     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  votes    PostVote[]
+  comments Comment[]
+}
+
+model PostVote {
+  id        String        @id @default(uuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  type      String // "up" or "down"
+  createdAt DateTime      @default(now())
+
+  @@unique([postId, userId])
+}
+
+model CommunityMember {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  communityId      String
+  community        Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  role             String    @default("member") // owner, admin, moderator, member
+  reputationPoints Int       @default(0)
+  votingPower      Int       @default(1)
+  isActive         Boolean   @default(true)
+  joinedAt         DateTime  @default(now())
+
+  @@unique([userId, communityId])
+}
+
+model GovernanceProposal {
+  id             String    @id @default(uuid())
+  communityId    String
+  community      Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  proposerId     String
+  title          String
+  description    String
+  type           String // feature-request, setlist-vote, merch-design, event-date, general
+  status         String    @default("active") // active, passed, rejected, executed
+  startDate      DateTime
+  endDate        DateTime
+  quorumRequired Int
+  totalVotes     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  options ProposalOption[]
+}
+
+model ProposalOption {
+  id         String             @id @default(uuid())
+  proposalId String
+  proposal   GovernanceProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  text       String
+  votes      Int                @default(0)
+}
+
+model Comment {
+  id        String        @id @default(uuid())
+  content   String
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  parentId  String?
+  parent    Comment?      @relation("CommentToComment", fields: [parentId], references: [id])
+  children  Comment[]     @relation("CommentToComment")
+  upvotes   Int           @default(0)
+  downvotes Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  votes CommentVote[]
+}
+
+model CommentVote {
+  id        String   @id @default(uuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String // "up" or "down"
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+}
+
+// ============================================
+// FANIQ ARENA (Quiz System)
+// ============================================
+
+model Quiz {
+  id            String    @id @default(uuid())
+  eventId       String?
+  artistId      String
+  artistName    String
+  type          String // "live" | "async"
+  status        String    @default("pending") // pending, active, completed
+  duration      Int       @default(180) // seconds
+  questionCount Int       @default(10)
+  startTime     DateTime?
+  endTime       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+}
+
+model QuizQuestion {
+  id            String   @id @default(uuid())
+  quizId        String
+  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question      String
+  type          String // "multiple_choice" | "fill_blank" | "order" | "visual" | "creative"
+  options       String[] // Array of options
+  correctAnswer String
+  imageUrl      String?
+  timeLimit     Int      @default(7) // seconds per question
+  difficulty    String   @default("medium") // easy, medium, hard
+  orderIndex    Int
+  createdAt     DateTime @default(now())
+}
+
+model QuizAttempt {
+  id     String @id @default(uuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  correctAnswers     Int   @default(0)
+  totalQuestions     Int
+  avgResponseTime    Float @default(0) // milliseconds
+  responseTimeStdDev Float @default(0) // for consistency scoring
+  streak             Int   @default(0)
+  maxStreak          Int   @default(0)
+
+  finalScore       Float @default(0)
+  speedScore       Float @default(0)
+  accuracyScore    Float @default(0)
+  consistencyScore Float @default(0)
+
+  rank        Int?
+  status      String    @default("in_progress") // in_progress, completed
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Relations
+  responses QuizResponse[]
+
+  @@index([quizId, finalScore])
+  @@index([userId])
+}
+
+model QuizResponse {
+  id           String      @id @default(uuid())
+  attemptId    String
+  attempt      QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId   String
+  answer       String
+  isCorrect    Boolean
+  responseTime Int // milliseconds
+  answeredAt   DateTime    @default(now())
+}
+
+model FanIQBadge {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  tier       String // "bronze" | "silver" | "gold"
+  artistId   String
+  artistName String
+  tokenId    String? // NFT token ID on Polygon
+  txHash     String? // Blockchain transaction hash
+  earnedAt   DateTime @default(now())
+
+  @@unique([userId, artistId, tier])
+  @@index([userId])
+}
+
+// Quiz stats for leaderboard (using visitorId for anonymous users)
+model QuizUserStats {
+  id           String   @id @default(uuid())
+  visitorId    String // Browser fingerprint or user ID
+  artistName   String
+  attemptCount Int      @default(0)
+  totalScore   Float    @default(0)
+  averageScore Float    @default(0)
+  bestScore    Float    @default(0)
+  bestAccuracy Float    @default(0)
+  bestSpeed    Float    @default(0)
+  lastScore    Float    @default(0)
+  lastPlayedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([visitorId, artistName])
+  @@index([artistName, bestScore])
+  @@index([visitorId])
+}
